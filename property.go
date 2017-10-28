@@ -20,7 +20,7 @@ func getPropertyName(field *ast.Field) string {
 	} else if astTypeIdent, ok := field.Type.(*ast.Ident); ok {
 		name = astTypeIdent.Name
 	} else if _, ok := field.Type.(*ast.StarExpr); ok {
-		panic("not supported astStarExpr yet.")
+		return "object"
 	} else if _, ok := field.Type.(*ast.MapType); ok { // if map
 		//TODO: support map
 		return "object"

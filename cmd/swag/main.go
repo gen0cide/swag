@@ -3,14 +3,14 @@ package main
 import (
 	"os"
 
-	"github.com/swaggo/swag/gen"
+	"github.com/gen0cide/swag/gen"
 	"github.com/urfave/cli"
 )
 
 func main() {
 	app := cli.NewApp()
 
-	app.Usage = "Automatically generate RESTful API documentation with Swagger 2.0 for Go."
+	app.Usage = "Gen0cide tackles star expressions."
 
 	app.Commands = []cli.Command{
 		{

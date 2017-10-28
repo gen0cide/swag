@@ -1,6 +1,7 @@
 package swag
 
 import (
+	"fmt"
 	"go/ast"
 	goparser "go/parser"
 	"go/token"
@@ -179,6 +180,7 @@ func (parser *Parser) ParseType(astFile *ast.File) {
 
 // ParseDefinitions parses Swagger Api definitions
 func (parser *Parser) ParseDefinitions() {
+	// seenPointers := map[string]bool{}
 	for refTypeName, typeSpec := range parser.registerTypes {
 		var properties map[string]spec.Schema
 		properties = make(map[string]spec.Schema)
@@ -189,10 +191,66 @@ func (parser *Parser) ParseDefinitions() {
 			fields := structDecl.Fields.List
 
 			for _, field := range fields {
-				name := field.Names[0].Name
-				propName := getPropertyName(field)
-				properties[name] = spec.Schema{
-					SchemaProps: spec.SchemaProps{Type: []string{propName}},
+				if _, ok := field.Type.(*ast.StarExpr); ok {
+					// .Indirect(field.Type.(*ast.StarExpr).X)
+					ast.Inspect(field.Type.(*ast.StarExpr).X, func(n ast.Node) bool {
+						var s string
+						switch x := n.(type) {
+						case *ast.BasicLit:
+							s = x.Value
+						case *ast.Ident:
+							s = x.Name
+							if n.(*ast.Ident).Obj == nil {
+								return true
+							}
+							if n.(*ast.Ident).Obj.Kind == ast.Typ {
+								fmt.Printf("STAREXPR IDENT FOUND: %s\n", s)
+								if decl, ok2 := x.Obj.Decl.(*ast.TypeSpec); ok2 {
+									if strtDecl2, ok3 := decl.Type.(*ast.StructType); ok3 {
+										var properties2 map[string]spec.Schema
+										properties2 = make(map[string]spec.Schema)
+										_ = properties2
+										fields2 := strtDecl2.Fields.List
+										for _, newField := range fields2 {
+											name := newField.Names[0].Name
+											propName := getPropertyName(newField)
+											properties2[name] = spec.Schema{
+												SchemaProps: spec.SchemaProps{Type: []string{propName}},
+											}
+										}
+										parser.swagger.Definitions[x.Name] = spec.Schema{
+											SchemaProps: spec.SchemaProps{
+												Type:       []string{"object"},
+												Properties: properties2,
+											},
+										}
+										properties[x.Name] = spec.Schema{
+											SchemaProps: spec.SchemaProps{
+												Type:       []string{"object"},
+												Properties: properties2,
+											},
+										}
+									} else {
+										fmt.Printf("FAILED STRUCT TYPE CONVERSION: %v\n", decl)
+										return false
+									}
+								} else {
+									fmt.Printf("FAILED TYPE SPEC CONVERSION: %v\n", x.Obj.Decl)
+									return false
+								}
+							}
+						}
+						if s != "" {
+							// destField := reflect.StructOf([]reflect.StructField{reflect.StructField{Name: s, Type: reflect.TypeOf(x)}})
+						}
+						return false
+					})
+				} else {
+					name := field.Names[0].Name
+					propName := getPropertyName(field)
+					properties[name] = spec.Schema{
+						SchemaProps: spec.SchemaProps{Type: []string{propName}},
+					}
 				}
 			}
 
